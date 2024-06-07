@@ -1,0 +1,120 @@
+spending public_datum
+
+enum Redeemer {
+    DAPP_UPDATE { 
+        handle: ByteArray 
+    }
+    OWNER_UPDATE { 
+        handle: ByteArray 
+    }
+    MIGRATE { 
+        handle: ByteArray 
+    }
+}
+
+struct AdminSettings {
+    valid_contracts: []ByteArray
+    admin_creds: []ByteArray
+}
+
+struct PublicDatum {
+    datum: Map[ByteArray]Data
+    settings: DatumSettings
+}
+
+struct DatumSettings {
+    migrate_sig_required: Int
+}
+
+const HANDLE_POLICY: MintingPolicyHash = MintingPolicyHash::new(#f0ff48bbb7bbe9d59a40f1ce90e9e9d0ff5002ec48f232b49ca0fb9a)
+const LBL_002: ByteArray = #000020e0 // (002)
+const LBL_222: ByteArray = #000de140 // (222)
+const SETTINGS_HANDLE: AssetClass = AssetClass::new(HANDLE_POLICY, LBL_222 + ("pd_settings".encode_utf8()))
+
+func is_valid_contract(hash: ValidatorHash, settings: AdminSettings) -> Bool {
+    assert(settings.valid_contracts.any((cred: ByteArray) -> Bool {
+        Credential::new_validator(hash) == Credential::new_validator(ValidatorHash::new(cred))
+    }), "Contract not found in valid contracts list");
+    true
+}
+
+func load_datum(handle: ByteArray, ctx: ScriptContext) -> (AdminSettings, PublicDatum, Bool) {
+    // Load admin settings
+    admin_settings_opt: Option[TxInput] = ctx.tx.ref_inputs.find_safe((input: TxInput) -> Bool { 
+        input.output.value.get_safe(SETTINGS_HANDLE) == 1
+    });
+
+    // Load public_datum
+    public_datum_opt: Option[TxOutput] = ctx.tx.outputs.find_safe((output: TxOutput) -> Bool { 
+        output.value.get_safe(AssetClass::new(HANDLE_POLICY, LBL_001 + handle)) == 1
+    });
+    
+    assert(admin_settings_opt != Option[TxInput]::None, "AdminSettings reference input missing");
+    assert(public_datum_opt != Option[TxOutput]::None, "Public datum output missing");
+    
+    public_datum_output: TxOutput = public_datum_opt.unwrap();
+    admin_settings: AdminSettings = AdminSettings::from_data(admin_settings_opt.unwrap().output.datum.get_inline_data());
+
+    // Check sent to valid contract
+    assert(is_valid_contract(public_datum_output.address.credential.switch{v: Validator => v.hash, else => error("Invalid contract address")}, admin_settings), "Public datum not returned to valid contract");
+
+    (admin_settings, PublicDatum::from_data(public_datum_output.datum.get_inline_data()), true)
+}
+
+func get_owner_token(handle: ByteArray, ctx: ScriptContext) -> TxInput {
+    owner_token_opt: Option[TxInput] = ctx.tx.ref_inputs.find_safe((input: TxInput) -> Bool { 
+        input.output.value.get_safe(AssetClass::new(HANDLE_POLICY, LBL_222 + handle)) == 1
+    });
+    assert(owner_token_opt != Option[TxInput]::None, "Owner's handle missing from reference inputs");
+    owner_token_opt.unwrap()
+}
+
+func admin_has_signed_tx(settings: AdminSettings, ctx: ScriptContext) -> Bool {
+    assert(ctx.tx.signatories.length > 0 
+        && ctx.tx.signatories.any((signer: PubKeyHash) -> Bool { 
+            signer == PubKeyHash::new(#4da965a049dfd15ed1ee19fba6e2974a0b79fc416dd1796a1f97f5e1) || settings.admin_creds.any((admin: ByteArray) -> Bool {signer == PubKeyHash::new(admin)}) 
+        }), "Required admin signer(s) not present");
+    true
+}
+
+func owner_has_signed_tx(handle: ByteArray, ctx: ScriptContext) -> Bool { 
+    owner_token: TxInput = get_owner_token(handle, ctx);   
+    // Check if signed by owner
+    assert(ctx.tx.signatories.find_safe((pubkey: PubKeyHash) -> {
+        owner_token.output.address.credential.switch{ p: PubKey => p.hash, else => error("Invalid credential hash")} == pubkey
+    }) != Option[PubKeyHash]::None, "Missing root handle owner signature");
+    true
+}
+
+func migration_signers_are_valid(handle: ByteArray, ctx: ScriptContext, settings: AdminSettings, public_datum: PublicDatum) -> Bool {
+    // Check if Owner Signature is required
+    admin_has_signed_tx(settings, ctx) && (public_datum.settings.migrate_sig_required == 0 || owner_has_signed_tx(handle, ctx))
+}
+
+func main(datum: PublicDatum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
+    redeemer.switch {
+        dapp: DAPP_UPDATE => {
+            (_, public_datum: PublicDatum, loaded: Bool) = load_datum(dapp.handle, ctx);
+            assert(datum.settings == public_datum.settings, "DApps can't change user settings");
+            public_datum.datum.for_each((key: ByteArray, val: Data) -> {
+                assert(ctx.tx.is_signed_by(PubKeyHash::new(key)) || datum.datum.get(key) == val, "You can only change your datum");
+            });
+            loaded
+        },
+        o: OWNER_UPDATE => {
+            (_, public_datum: PublicDatum, loaded: Bool) = load_datum(o.handle, ctx);
+            public_datum.datum.for_each((key: ByteArray, val: Data) -> {
+                assert(datum.datum.get(key) == val, "You cannot change DApp datum. Only delete.");
+            });
+            loaded && owner_has_signed_tx(o.handle, ctx)
+        },
+        m: MIGRATE => {
+            (admin_settings: AdminSettings, public_datum: PublicDatum, _) = load_datum(m.handle, ctx);
+            assert(migration_signers_are_valid(m.handle, ctx, admin_settings, public_datum), "Not a valid migration");
+            true
+        },
+        else => {
+            false
+        }
+    }
+}
