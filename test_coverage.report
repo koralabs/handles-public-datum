@@ -1,0 +1,42 @@
+TAP version 13
+# Subtest: resolveOptimizationFlag handles false and truthy values
+ok 1 - resolveOptimizationFlag handles false and truthy values
+  ---
+  duration_ms: 0.476896
+  ...
+# Subtest: normalizeContractDirectory trims trailing slash
+ok 2 - normalizeContractDirectory trims trailing slash
+  ---
+  duration_ms: 0.075418
+  ...
+# Subtest: readContractSource loads contact.helios and finds entrypoint text
+ok 3 - readContractSource loads contact.helios and finds entrypoint text
+  ---
+  duration_ms: 0.096288
+  ...
+# Subtest: hasValidatorEntrypoint returns false when no validator text exists
+ok 4 - hasValidatorEntrypoint returns false when no validator text exists
+  ---
+  duration_ms: 0.045209
+  ...
+1..4
+# tests 4
+# suites 0
+# pass 4
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 36.927857
+# start of coverage report
+# -----------------------------------------------------------------------
+# file                   | line % | branch % | funcs % | uncovered lines
+# -----------------------------------------------------------------------
+# contractUtils.js       | 100.00 |   100.00 |  100.00 | 
+# tests                  |        |          |         | 
+#  contractUtils.test.js | 100.00 |   100.00 |  100.00 | 
+# -----------------------------------------------------------------------
+# all files              | 100.00 |   100.00 |  100.00 | 
+# -----------------------------------------------------------------------
+# end of coverage report
+Coverage threshold met (line=100.00%, branch=100.00%).
