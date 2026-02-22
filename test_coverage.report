@@ -1,23 +1,36 @@
+FORMAT_VERSION=1
+REPO=handles-public-datum
+TIMESTAMP_UTC=2026-02-22T16:36:05Z
+THRESHOLD_LINES=90
+THRESHOLD_BRANCHES=90
+TOTAL_LINES_PCT=100.00
+TOTAL_BRANCHES_PCT=100.00
+STATUS=pass
+SOURCE_PATHS=contractUtils.js
+EXCLUDED_PATHS=NON_CRITICAL_RUNTIME_PATHS:covered_by_separate_suites
+LANGUAGE_SUMMARY=nodejs:lines=100.00,branches=100.00,tool=node-test-coverage,status=pass
+
+=== RAW_OUTPUT_NODE_TEST ===
 TAP version 13
 # Subtest: resolveOptimizationFlag handles false and truthy values
 ok 1 - resolveOptimizationFlag handles false and truthy values
   ---
-  duration_ms: 0.476896
+  duration_ms: 0.528063
   ...
 # Subtest: normalizeContractDirectory trims trailing slash
 ok 2 - normalizeContractDirectory trims trailing slash
   ---
-  duration_ms: 0.075418
+  duration_ms: 0.08228
   ...
 # Subtest: readContractSource loads contact.helios and finds entrypoint text
 ok 3 - readContractSource loads contact.helios and finds entrypoint text
   ---
-  duration_ms: 0.096288
+  duration_ms: 0.103993
   ...
 # Subtest: hasValidatorEntrypoint returns false when no validator text exists
 ok 4 - hasValidatorEntrypoint returns false when no validator text exists
   ---
-  duration_ms: 0.045209
+  duration_ms: 0.048454
   ...
 1..4
 # tests 4
@@ -27,7 +40,7 @@ ok 4 - hasValidatorEntrypoint returns false when no validator text exists
 # cancelled 0
 # skipped 0
 # todo 0
-# duration_ms 36.927857
+# duration_ms 39.866077
 # start of coverage report
 # -----------------------------------------------------------------------
 # file                   | line % | branch % | funcs % | uncovered lines
@@ -39,4 +52,3 @@ ok 4 - hasValidatorEntrypoint returns false when no validator text exists
 # all files              | 100.00 |   100.00 |  100.00 | 
 # -----------------------------------------------------------------------
 # end of coverage report
-Coverage threshold met (line=100.00%, branch=100.00%).
