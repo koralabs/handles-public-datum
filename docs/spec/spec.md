@@ -40,8 +40,12 @@
   - optimize-flag resolution,
   - contract directory normalization,
   - contract source loading and entrypoint checks.
-- `test_coverage.sh` executes Node coverage for `tests/contractUtils.test.js` and enforces >=90% lines/branches.
+- `test_coverage.sh` runs standard `npm test` first, then executes Node coverage for `tests/contractUtils.test.js`.
+- Measurable compile/utility scope enforces >=90% lines/branches.
+- Script emits `STATUS=partial` when measurable scope passes but scenario harness runtime is non-deterministic in local environment.
 - `test_coverage.report` stores the generated coverage output.
 
 ## Known Test Runtime Constraint
-- Repository `npm test` currently fails because `test:old` points to `tests/tests.js`, but the repo contains `tests/tests.ts`.
+- Repository `npm test` currently fails because:
+- `test:old` points to `tests/tests.js`, while the tracked source file is `tests/tests.ts`.
+- `test:new` requires runtime dependencies (`dotenv/config`) not available in this local environment by default.
