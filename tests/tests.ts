@@ -1,163 +1,194 @@
-import fs from "fs";
-import * as helios from '@koralabs/helios'
-import { ContractTester, Test } from '@koralabs/kora-labs-contract-testing'
-import { CommonFixtures, EditingFixtures, MintingFixtures, paymentAddress, refTokenAddress } from "./fixtures";
-import { AssetNameLabel, HexString } from "@koralabs/kora-labs-common";
+import fs from "node:fs";
+
+import * as helios from "@koralabs/helios";
+import { ContractTester, Test } from "@koralabs/kora-labs-contract-testing/contractTester.js";
+import { getAddressAtDerivation } from "@koralabs/kora-labs-contract-testing/fixtures.js";
+
+import {
+  PublicDatumFixture,
+  adminSigner,
+  baseEntries,
+  dappSigner,
+  handleName,
+  otherDappSigner,
+  ownerSigner,
+} from "./fixtures";
+
 helios.config.set({ IS_TESTNET: false, AUTO_SET_VALIDITY_RANGE: true });
 
+const contractFile = fs.readFileSync("./contact.helios", "utf8");
+const program = helios.Program.new(contractFile);
+const { Redeemer } = program.types;
+const handleBytes = [...Buffer.from(handleName, "utf8")];
+
+const dappUpdatedEntries = [
+  { keyHex: dappSigner.hex, value: 2n },
+  { keyHex: otherDappSigner.hex, value: 7n },
+];
+
+const unauthorizedDappEntries = [
+  { keyHex: dappSigner.hex, value: 2n },
+  { keyHex: otherDappSigner.hex, value: 9n },
+];
+
+const ownerPrunedEntries = [{ keyHex: dappSigner.hex, value: 1n }];
+
+const ownerMutatedEntries = [{ keyHex: dappSigner.hex, value: 5n }];
+
+const makeRedeemer = (
+  Variant: typeof Redeemer.DAPP_UPDATE | typeof Redeemer.MIGRATE | typeof Redeemer.OWNER_UPDATE,
+) => new Variant(handleBytes)._toUplcData();
+
+const fixtureFor =
+  (options: ConstructorParameters<PublicDatumFixture["initialize"]>[0]) =>
+  async (validatorHash: helios.ValidatorHash) =>
+    new PublicDatumFixture(validatorHash).initialize(options);
+
 const runTests = async () => {
-    let mintingFile = fs.readFileSync("./minting.helios").toString();
-    const mintingProgram = helios.Program.new(mintingFile);
-    mintingProgram.parameters.SETTINGS_HANDLE_NAME = "settings";
-    const mintingContract = mintingProgram.compile();
+  const tester = new ContractTester(await getAddressAtDerivation(0));
+  await tester.init();
 
-    let editingFile = fs.readFileSync("./editing.helios").toString();
-    const editingProgram = helios.Program.new(editingFile);
-    editingProgram.parameters.SETTINGS_HANDLE_NAME = "settings";
-    editingProgram.parameters.MINTING_POLICY_ID = mintingContract.mintingPolicyHash.hex;
-    const editingContract = editingProgram.compile();
+  const cases: Array<() => Promise<void>> = [
+    () =>
+      tester.test(
+        "DAPP_UPDATE",
+        "signer may update its own datum key",
+        new Test(
+          program,
+          fixtureFor({
+            newEntries: dappUpdatedEntries,
+            oldEntries: baseEntries,
+            redeemer: makeRedeemer(Redeemer.DAPP_UPDATE),
+            signatories: [dappSigner],
+          }),
+        ),
+      ),
+    () =>
+      tester.test(
+        "DAPP_UPDATE",
+        "settings block is immutable for dapps",
+        new Test(
+          program,
+          fixtureFor({
+            oldEntries: baseEntries,
+            newEntries: dappUpdatedEntries,
+            oldMigrateSigRequired: 0,
+            newMigrateSigRequired: 1,
+            redeemer: makeRedeemer(Redeemer.DAPP_UPDATE),
+            signatories: [dappSigner],
+          }),
+        ),
+        false,
+        "DApps can't change user settings",
+      ),
+    () =>
+      tester.test(
+        "DAPP_UPDATE",
+        "signer cannot mutate another dapp key",
+        new Test(
+          program,
+          fixtureFor({
+            newEntries: unauthorizedDappEntries,
+            oldEntries: baseEntries,
+            redeemer: makeRedeemer(Redeemer.DAPP_UPDATE),
+            signatories: [dappSigner],
+          }),
+        ),
+        false,
+        "You can only change your datum",
+      ),
+    () =>
+      tester.test(
+        "OWNER_UPDATE",
+        "owner may prune third-party datum entries",
+        new Test(
+          program,
+          fixtureFor({
+            newEntries: ownerPrunedEntries,
+            oldEntries: baseEntries,
+            redeemer: makeRedeemer(Redeemer.OWNER_UPDATE),
+            signatories: [ownerSigner],
+          }),
+        ),
+      ),
+    () =>
+      tester.test(
+        "OWNER_UPDATE",
+        "owner cannot rewrite preserved datum values",
+        new Test(
+          program,
+          fixtureFor({
+            newEntries: ownerMutatedEntries,
+            oldEntries: baseEntries,
+            redeemer: makeRedeemer(Redeemer.OWNER_UPDATE),
+            signatories: [ownerSigner],
+          }),
+        ),
+        false,
+        "You cannot change DApp datum. Only delete.",
+      ),
+    () =>
+      tester.test(
+        "MIGRATE",
+        "admin signer may migrate without owner when policy flag is off",
+        new Test(
+          program,
+          fixtureFor({
+            oldEntries: baseEntries,
+            newEntries: baseEntries,
+            oldMigrateSigRequired: 0,
+            newMigrateSigRequired: 0,
+            redeemer: makeRedeemer(Redeemer.MIGRATE),
+            signatories: [adminSigner],
+          }),
+        ),
+      ),
+    () =>
+      tester.test(
+        "MIGRATE",
+        "owner co-sign is required when migrate_sig_required is enabled",
+        new Test(
+          program,
+          fixtureFor({
+            oldEntries: baseEntries,
+            newEntries: baseEntries,
+            oldMigrateSigRequired: 0,
+            newMigrateSigRequired: 1,
+            redeemer: makeRedeemer(Redeemer.MIGRATE),
+            signatories: [adminSigner],
+          }),
+        ),
+        false,
+        "Missing root handle owner signature",
+      ),
+    () =>
+      tester.test(
+        "MIGRATE",
+        "migration fails without an admin signer",
+        new Test(
+          program,
+          fixtureFor({
+            oldEntries: baseEntries,
+            newEntries: baseEntries,
+            redeemer: makeRedeemer(Redeemer.MIGRATE),
+            signatories: [ownerSigner],
+          }),
+        ),
+        false,
+        "Required admin signer(s) not present",
+      ),
+  ];
 
-    let commonFixtures = new CommonFixtures();
-    await commonFixtures.initialize();
+  for (const runCase of cases) {
+    await runCase();
+  }
 
-    const commonFixtureMax = new CommonFixtures();
-    const settingsMax = [
-        `0x${helios.Address.fromBech32(paymentAddress).toHex()}`,
-        `0x${helios.Address.fromBech32(refTokenAddress).toHex()}`,
-        []
-    ] as (HexString | any[])[];
-    const maxAssets = 300;
-    const pad0 = 4; // 4 or 56
-    const maxAsset = maxAssets.toString().padStart(pad0, '0'); // 4 or 56
-    for (let i=1; i <= maxAssets; i++) {
-        (settingsMax[2] as any[]).push([`0x${AssetNameLabel.LBL_444}${i.toString().padStart(pad0,'0')}`, ["0x0000000000000000000000000000000000000000000000000000000000000001", 0], 0, 0, [] ])
-    }
-    await commonFixtureMax.initialize(settingsMax);
-    console.log(`CBOR size of settings with ${maxAssets} assets is ${commonFixtureMax.settingsCbor.length / 2}`)
-    
-    const mintingFixtures = new MintingFixtures(mintingContract.mintingPolicyHash.hex, commonFixtures, commonFixtures.configCbor);
+  tester.displayStats();
 
-    const editingFixtures = new EditingFixtures(mintingContract.mintingPolicyHash.hex, commonFixtures, commonFixtures.configCbor, helios.Address.fromHash(new helios.ValidatorHash(editingContract.validatorHash.hex)));
-    
-    const tester = new ContractTester(helios.Address.fromBech32(commonFixtures.walletAddress));
-    await tester.init();
-    
-    Promise.all([
-        // Minting Contract - SHOULD APPROVE
-        tester.test("MINTING", "New Policy, 444 mints, 100 mints", new Test(mintingProgram, mintingFixtures.initialize)),
-        tester.test("MINTING", "Multiple 444 mints", new Test(mintingProgram, () => {
-            mintingFixtures.initialize();
-            mintingFixtures.signatories = [];
-            mintingFixtures.minted = mintingFixtures.minted?.slice(0,3);
-            mintingFixtures.outputs = mintingFixtures.outputs?.slice(0,3);
-            return mintingFixtures;
-        })),
-        tester.test("MINTING", "Max assets, Mint 444 & 100", new Test(mintingProgram, () => {
-            const mintingMax = new MintingFixtures(mintingProgram.compile(true).mintingPolicyHash.hex, commonFixtureMax, commonFixtureMax.configCbor);
-            mintingMax.initialize();
-            mintingMax.outputs = mintingMax.outputs?.slice(0,2).concat([new helios.TxOutput(
-                helios.Address.fromBech32(commonFixtureMax.walletAddress), new helios.Value(BigInt(5000000), new helios.Assets([[mintingMax.policyId, [[`${AssetNameLabel.LBL_444}${maxAsset}`, BigInt(1)]]]]))
-            ),
-            new helios.TxOutput(
-                helios.Address.fromBech32(commonFixtureMax.refTokenAddress), new helios.Value(BigInt(5000000), new helios.Assets([[mintingMax.policyId, [[`${AssetNameLabel.LBL_100}${maxAsset}`, BigInt(1)]]]]))
-            )]);
-            mintingMax.minted = [[`${AssetNameLabel.LBL_444}${maxAsset}`, BigInt(1)], [`${AssetNameLabel.LBL_100}${maxAsset}`, BigInt(1)]];
-            return mintingMax;
-        }, undefined, true)),
-        tester.test("MINTING", "Multiple 444 mints w/ discount", new Test(mintingProgram, () => {
-            mintingFixtures.initialize();
-            mintingFixtures.signatories = [];
-            mintingFixtures.minted = mintingFixtures.minted?.slice(0,3);
-            mintingFixtures.inputs?.push(new helios.TxInput(
-                new helios.TxOutputId(`0000000000000000000000000000000000000000000000000000000000000001#4`),
-                new helios.TxOutput(helios.Address.fromBech32(commonFixtures.walletAddress), new helios.Value(BigInt(5000000), new helios.Assets([['00000000000000000000000000000000000000000000000000000002', [[`74657374`, 2]]]]))
-            )));
-            mintingFixtures.outputs = mintingFixtures.outputs?.slice(2,3);
-            mintingFixtures.outputs?.push(new helios.TxOutput(
-                helios.Address.fromBech32(commonFixtures.walletAddress), new helios.Value(BigInt(5000000), new helios.Assets([['00000000000000000000000000000000000000000000000000000002', [[`74657374`, 2]]]]))
-            ));
-            mintingFixtures.outputs?.push(new helios.TxOutput(
-                helios.Address.fromBech32(commonFixtures.paymentAddress), new helios.Value(BigInt(76000000))
-            ));
-            mintingFixtures.outputs?.push(new helios.TxOutput(
-                helios.Address.fromBech32(commonFixtures.feeAddress), new helios.Value(BigInt(4000000))
-            ))
-            return mintingFixtures;
-        })),
-        tester.test("MINTING", "Multiple 444 mints w/ different discount", new Test(mintingProgram, () => {
-            mintingFixtures.initialize();
-            mintingFixtures.signatories = [];
-            mintingFixtures.minted = mintingFixtures.minted?.slice(0,3);
-            mintingFixtures.inputs?.push(new helios.TxInput(
-                new helios.TxOutputId(`0000000000000000000000000000000000000000000000000000000000000001#4`),
-                new helios.TxOutput(helios.Address.fromBech32(commonFixtures.walletAddress), new helios.Value(BigInt(5000000), new helios.Assets([['00000000000000000000000000000000000000000000000000000002', [[`74657374`, 2],[`7465737431`, 2],[`7465737433`, 2]]]]))
-            )));
-            mintingFixtures.outputs = mintingFixtures.outputs?.slice(2,3);
-            mintingFixtures.outputs?.push(new helios.TxOutput(
-                helios.Address.fromBech32(commonFixtures.walletAddress), new helios.Value(BigInt(5000000), new helios.Assets([['00000000000000000000000000000000000000000000000000000002', [[`74657374`, 2],[`7465737431`, 2],[`7465737433`, 2]]]]))
-            ));
-            mintingFixtures.outputs?.push(new helios.TxOutput(
-                helios.Address.fromBech32(commonFixtures.paymentAddress), new helios.Value(BigInt(20000000))
-            ));
-            mintingFixtures.outputs?.push(new helios.TxOutput(
-                helios.Address.fromBech32(commonFixtures.feeAddress), new helios.Value(BigInt(2000000))
-            ))
-            return mintingFixtures;
-        })),
-        tester.test("MINTING", "Burn approved", new Test(mintingProgram, () => {
-            mintingFixtures.initialize();
-            mintingFixtures.inputs?.push(new helios.TxInput(
-                new helios.TxOutputId(`0000000000000000000000000000000000000000000000000000000000000001#1`),
-                new helios.TxOutput(helios.Address.fromBech32(commonFixtures.walletAddress), new helios.Value(BigInt(10000000), new helios.Assets([[mintingFixtures.policyId, [[`${AssetNameLabel.LBL_100}74657374`, BigInt(2)], [`${AssetNameLabel.LBL_100}7465737431`, BigInt(2)]]]]))
-            )));
-            mintingFixtures.minted = [[`${AssetNameLabel.LBL_100}74657374`, BigInt(-1)], [`${AssetNameLabel.LBL_100}7465737431`, BigInt(-1)]];
-            mintingFixtures.outputs = [new helios.TxOutput(helios.Address.fromBech32(commonFixtures.refTokenAddress), 
-                    new helios.Value(BigInt(5000000), new helios.Assets([[mintingFixtures.policyId, [[`${AssetNameLabel.LBL_100}74657374`, 1],[`${AssetNameLabel.LBL_100}7465737431`, 1]]]]))
-            )];
-            mintingFixtures.redeemer = helios.UplcData.fromCbor('d87a9fff');
-            return mintingFixtures;
-        })),
+  const totals = tester.getTotals();
+  if (totals.failCount > 0 || totals.successCount !== totals.testCount) {
+    process.exitCode = 1;
+  }
+};
 
-        // Minting Contract - SHOULD DENY
-        tester.test("MINTING", "Multiple 444 mints, low payment", new Test(mintingProgram, () => {
-            mintingFixtures.initialize();
-            mintingFixtures.signatories = [];
-            mintingFixtures.minted = mintingFixtures.minted?.slice(0,3);
-            mintingFixtures.outputs = mintingFixtures.outputs?.slice(1,3);
-            mintingFixtures.outputs?.push(new helios.TxOutput(
-                helios.Address.fromBech32(commonFixtures.paymentAddress), new helios.Value(BigInt(90000000))
-            ));
-            return mintingFixtures;
-        }), false, 'Policy minting payment is unpaid'),
-        tester.test("MINTING", "Burn too many", new Test(mintingProgram, () => {
-            mintingFixtures.initialize();
-            mintingFixtures.inputs?.push(new helios.TxInput(
-                new helios.TxOutputId(`0000000000000000000000000000000000000000000000000000000000000001#1`),
-                new helios.TxOutput(helios.Address.fromBech32(commonFixtures.walletAddress), new helios.Value(BigInt(10000000), new helios.Assets([[mintingFixtures.policyId, [[`${AssetNameLabel.LBL_100}74657374`, BigInt(2)], [`${AssetNameLabel.LBL_100}7465737431`, BigInt(2)]]]]))
-            )));
-            mintingFixtures.minted = [[`${AssetNameLabel.LBL_100}74657374`, BigInt(-2)], [`${AssetNameLabel.LBL_100}7465737431`, BigInt(-2)]];
-            mintingFixtures.outputs = undefined;
-            mintingFixtures.redeemer = helios.UplcData.fromCbor('d87a9fff');
-            return mintingFixtures;
-        }), false, 'There should be at least one reference token remaining'),
-        tester.test("MINTING", "Burn 444 token", new Test(mintingProgram, () => {
-            mintingFixtures.initialize();
-            mintingFixtures.inputs?.push(new helios.TxInput(
-                new helios.TxOutputId(`0000000000000000000000000000000000000000000000000000000000000001#1`),
-                new helios.TxOutput(helios.Address.fromBech32(commonFixtures.walletAddress), new helios.Value(BigInt(10000000), new helios.Assets([[mintingFixtures.policyId, [[`${AssetNameLabel.LBL_100}74657374`, BigInt(2)], [`${AssetNameLabel.LBL_444}7465737431`, BigInt(2)]]]]))
-            )));
-            mintingFixtures.minted = [[`${AssetNameLabel.LBL_100}74657374`, BigInt(-1)], [`${AssetNameLabel.LBL_444}7465737431`, BigInt(-1)]];
-            mintingFixtures.outputs = undefined;
-            mintingFixtures.redeemer = helios.UplcData.fromCbor('d87a9fff');
-            return mintingFixtures;
-        }), false, 'The BURN redeemer only allows reference tokens to be burnt'),
-        
-        // Editing Contract - SHOULD APPROVE
-        tester.test("EDITING", "happy path", new Test(editingProgram, editingFixtures.initialize)),
-    ]
-    ).then(() => {tester.displayStats()});
-}
-
-(async()=> {
-    await runTests()
-})();
+await runTests();

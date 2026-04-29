@@ -12,15 +12,10 @@ THRESHOLD_BRANCHES=90
 cd "$ROOT_DIR"
 
 NPM_TEST_STATUS="pass"
-NPM_TEST_NOTE="npm-test-succeeded"
+NPM_TEST_NOTE="public-datum-scenario-harness-and-unit-tests-passed"
 if ! npm test > "$TMP_DIR/npm.test.log" 2>&1; then
-  if grep -qiE "Cannot find module '.*/tests/tests\\.js'|Cannot find module 'dotenv/config'" "$TMP_DIR/npm.test.log"; then
-    NPM_TEST_STATUS="na"
-    NPM_TEST_NOTE="legacy-scenario-tests-require-missing-runtime-dependencies-or-entrypoint-fix"
-  else
-    NPM_TEST_STATUS="fail"
-    NPM_TEST_NOTE="npm-test-failed"
-  fi
+  NPM_TEST_STATUS="fail"
+  NPM_TEST_NOTE="npm-test-failed"
 fi
 
 node --test --experimental-test-coverage tests/contractUtils.test.js > "$TMP_DIR/contract-utils.coverage.log" 2>&1
@@ -48,8 +43,6 @@ fi
 
 if [[ "$NPM_TEST_STATUS" == "fail" ]]; then
   STATUS="fail"
-elif [[ "$NPM_TEST_STATUS" == "na" && "$STATUS" == "pass" ]]; then
-  STATUS="partial"
 fi
 
 {
@@ -62,8 +55,8 @@ fi
   echo "TOTAL_BRANCHES_PCT=$BRANCH_COVERAGE"
   echo "STATUS=$STATUS"
   echo "SOURCE_PATHS=contractUtils.js"
-  echo "EXCLUDED_PATHS=contact.helios:validator-source-covered-by-scenario-harness-not-branch-measurable-via-node-built-in-coverage; tests/{tests.ts,fixtures.ts}:scenario-harness-runtime-paths-require-missing-entrypoint-or-dependencies-in-current-local-environment"
-  echo "LANGUAGE_SUMMARY=nodejs-utils:lines=$LINE_COVERAGE,branches=$BRANCH_COVERAGE,tool=node-test-coverage,status=$CONTRACT_UTILS_STATUS;nodejs-scenarios:lines=NA,branches=NA,tool=npm-test,status=$NPM_TEST_STATUS,note=$NPM_TEST_NOTE"
+  echo "EXCLUDED_PATHS=contact.helios:validator-source-exercised-via-transaction-scenario-harness-not-node-branch-measurable;tests/{tests.ts,fixtures.ts}:transaction-scenario-harness-files-not-measurable-via-node-built-in-coverage"
+  echo "LANGUAGE_SUMMARY=nodejs-utils:lines=$LINE_COVERAGE,branches=$BRANCH_COVERAGE,tool=node-test-coverage,status=$CONTRACT_UTILS_STATUS;helios-validator:lines=NA,branches=NA,tool=npm-test,status=$NPM_TEST_STATUS,note=$NPM_TEST_NOTE"
   echo
   echo "=== RAW_OUTPUT_NPM_TEST ==="
   cat "$TMP_DIR/npm.test.log"
@@ -73,10 +66,6 @@ fi
 } > "$REPORT_FILE"
 
 if [[ "$STATUS" != "pass" ]]; then
-  if [[ "$STATUS" == "partial" ]]; then
-    echo "Coverage thresholds met for measurable contract utility scope (line=${LINE_COVERAGE}%, branch=${BRANCH_COVERAGE}%) with scenario tests recorded as NA." >&2
-    exit 0
-  fi
   echo "Coverage threshold not met (line=${LINE_COVERAGE}%, branch=${BRANCH_COVERAGE}%)." >&2
   exit 1
 fi
