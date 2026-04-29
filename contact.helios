@@ -17,17 +17,17 @@ struct AdminSettings {
     admin_creds: []ByteArray
 }
 
+struct DatumSettings {
+    migrate_sig_required: Int
+}
+
 struct PublicDatum {
     datum: Map[ByteArray]Data
     settings: DatumSettings
 }
 
-struct DatumSettings {
-    migrate_sig_required: Int
-}
-
 const HANDLE_POLICY: MintingPolicyHash = MintingPolicyHash::new(#f0ff48bbb7bbe9d59a40f1ce90e9e9d0ff5002ec48f232b49ca0fb9a)
-const LBL_002: ByteArray = #000020e0 // (002)
+const LBL_001: ByteArray = #00001070 // (001)
 const LBL_222: ByteArray = #000de140 // (222)
 const SETTINGS_HANDLE: AssetClass = AssetClass::new(HANDLE_POLICY, LBL_222 + ("pd_settings".encode_utf8()))
 
@@ -97,14 +97,14 @@ func main(datum: PublicDatum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
             (_, public_datum: PublicDatum, loaded: Bool) = load_datum(dapp.handle, ctx);
             assert(datum.settings == public_datum.settings, "DApps can't change user settings");
             public_datum.datum.for_each((key: ByteArray, val: Data) -> {
-                assert(ctx.tx.is_signed_by(PubKeyHash::new(key)) || datum.datum.get(key) == val, "You can only change your datum");
+                assert(ctx.tx.is_signed_by(PubKeyHash::new(key)) || datum.datum.get(key) == val, "You can only change your datum")
             });
             loaded
         },
         o: OWNER_UPDATE => {
             (_, public_datum: PublicDatum, loaded: Bool) = load_datum(o.handle, ctx);
             public_datum.datum.for_each((key: ByteArray, val: Data) -> {
-                assert(datum.datum.get(key) == val, "You cannot change DApp datum. Only delete.");
+                assert(datum.datum.get(key) == val, "You cannot change DApp datum. Only delete.")
             });
             loaded && owner_has_signed_tx(o.handle, ctx)
         },

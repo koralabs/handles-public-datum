@@ -6,6 +6,8 @@
 - [Spec Docs](./docs/spec/index.md)
 
 ## Local Validation
-- `npm test` (scenario harness; may require missing local dependencies/entrypoint fix)
+- `npm test` (public datum contract scenarios plus utility unit tests)
+- `npm run test:contract`
+- `npm run test:unit`
 - `node --test tests/contractUtils.test.js`
 - `./test_coverage.sh`
