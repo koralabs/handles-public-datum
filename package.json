@@ -1,12 +1,10 @@
 {
     "name": "contract",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "description": "",
     "type": "module",
     "scripts": {
-        "test": "npm run test:old && npm run test:new",
-        "test:old": "node --es-module-specifier-resolution=node tests/tests.js",
-        "test:new": "tsx -r dotenv/config tests/txTests.ts"
+        "test": "node --test tests/*.test.js"
     },
     "author": "et",
     "license": "MIT",
@@ -16,7 +14,7 @@
         "@koralabs/kora-labs-contract-testing": "0.0.7",
         "@types/node": "^20.0",
         "bs58": "^5.0.0",
-        "dotenv": "^16.4.5" ,
+        "dotenv": "^16.4.5",
         "tsx": "^4.7.0"
     },
     "resolutions": {
