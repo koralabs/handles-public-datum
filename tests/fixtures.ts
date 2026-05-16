@@ -48,6 +48,9 @@ export interface DatumEntry {
 
 export interface PublicDatumFixtureOptions {
   adminCredHexes?: string[];
+  includeAdminSettingsRefInput?: boolean;
+  includeOwnerHandleRefInput?: boolean;
+  includePublicDatumOutput?: boolean;
   newEntries?: DatumEntry[];
   newMigrateSigRequired?: number;
   oldEntries?: DatumEntry[];
@@ -109,6 +112,9 @@ export class PublicDatumFixture extends Fixture {
   ): Promise<PublicDatumFixture> {
     const {
       adminCredHexes = [adminSigner.hex],
+      includeAdminSettingsRefInput = true,
+      includeOwnerHandleRefInput = true,
+      includePublicDatumOutput = true,
       newEntries = options.oldEntries ?? baseEntries,
       newMigrateSigRequired = options.oldMigrateSigRequired ?? 0,
       oldEntries = baseEntries,
@@ -140,28 +146,41 @@ export class PublicDatumFixture extends Fixture {
       ),
     ];
 
-    this.refInputs = [
-      new helios.TxInput(
-        new helios.TxOutputId(getNewFakeUtxoId()),
-        new helios.TxOutput(
-          ownerAddress,
-          buildHandleValue(settingsAssetName),
-          helios.Datum.inline(adminSettings),
-        ),
-      ),
-      new helios.TxInput(
-        new helios.TxOutputId(getNewFakeUtxoId()),
-        new helios.TxOutput(ownerAddress, buildHandleValue(ownerHandleAssetName)),
-      ),
-    ];
+    const refInputs: helios.TxInput[] = [];
 
-    this.outputs = [
-      new helios.TxOutput(
-        this.scriptAddress,
-        buildHandleValue(publicDatumAssetName),
-        helios.Datum.inline(newDatum),
-      ),
-    ];
+    if (includeAdminSettingsRefInput) {
+      refInputs.push(
+        new helios.TxInput(
+          new helios.TxOutputId(getNewFakeUtxoId()),
+          new helios.TxOutput(
+            ownerAddress,
+            buildHandleValue(settingsAssetName),
+            helios.Datum.inline(adminSettings),
+          ),
+        ),
+      );
+    }
+
+    if (includeOwnerHandleRefInput) {
+      refInputs.push(
+        new helios.TxInput(
+          new helios.TxOutputId(getNewFakeUtxoId()),
+          new helios.TxOutput(ownerAddress, buildHandleValue(ownerHandleAssetName)),
+        ),
+      );
+    }
+
+    this.refInputs = refInputs;
+
+    this.outputs = includePublicDatumOutput
+      ? [
+          new helios.TxOutput(
+            this.scriptAddress,
+            buildHandleValue(publicDatumAssetName),
+            helios.Datum.inline(newDatum),
+          ),
+        ]
+      : [];
 
     this.signatories = signatories;
     this.redeemer = redeemer;

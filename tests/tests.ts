@@ -99,6 +99,40 @@ const runTests = async () => {
       ),
     () =>
       tester.test(
+        "DAPP_UPDATE",
+        "admin settings reference input is required",
+        new Test(
+          program,
+          fixtureFor({
+            includeAdminSettingsRefInput: false,
+            newEntries: dappUpdatedEntries,
+            oldEntries: baseEntries,
+            redeemer: makeRedeemer(Redeemer.DAPP_UPDATE),
+            signatories: [dappSigner],
+          }),
+        ),
+        false,
+        "AdminSettings reference input missing",
+      ),
+    () =>
+      tester.test(
+        "DAPP_UPDATE",
+        "public datum must return to an approved contract",
+        new Test(
+          program,
+          fixtureFor({
+            newEntries: dappUpdatedEntries,
+            oldEntries: baseEntries,
+            redeemer: makeRedeemer(Redeemer.DAPP_UPDATE),
+            signatories: [dappSigner],
+            validContractHexes: ["00".repeat(28)],
+          }),
+        ),
+        false,
+        "Contract not found in valid contracts list",
+      ),
+    () =>
+      tester.test(
         "OWNER_UPDATE",
         "owner may prune third-party datum entries",
         new Test(
@@ -126,6 +160,23 @@ const runTests = async () => {
         ),
         false,
         "You cannot change DApp datum. Only delete.",
+      ),
+    () =>
+      tester.test(
+        "OWNER_UPDATE",
+        "owner update requires the owner handle reference input",
+        new Test(
+          program,
+          fixtureFor({
+            includeOwnerHandleRefInput: false,
+            newEntries: ownerPrunedEntries,
+            oldEntries: baseEntries,
+            redeemer: makeRedeemer(Redeemer.OWNER_UPDATE),
+            signatories: [ownerSigner],
+          }),
+        ),
+        false,
+        "Owner's handle missing from reference inputs",
       ),
     () =>
       tester.test(
@@ -160,6 +211,25 @@ const runTests = async () => {
         ),
         false,
         "Missing root handle owner signature",
+      ),
+    () =>
+      tester.test(
+        "MIGRATE",
+        "migration requiring owner co-sign needs the owner handle reference input",
+        new Test(
+          program,
+          fixtureFor({
+            includeOwnerHandleRefInput: false,
+            oldEntries: baseEntries,
+            newEntries: baseEntries,
+            oldMigrateSigRequired: 0,
+            newMigrateSigRequired: 1,
+            redeemer: makeRedeemer(Redeemer.MIGRATE),
+            signatories: [adminSigner, ownerSigner],
+          }),
+        ),
+        false,
+        "Owner's handle missing from reference inputs",
       ),
     () =>
       tester.test(
