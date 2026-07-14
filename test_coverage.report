@@ -1,62 +1,110 @@
 FORMAT_VERSION=1
 REPO=handles-public-datum
-TIMESTAMP_UTC=2026-02-22T20:23:11Z
+TIMESTAMP_UTC=2026-07-14T06:49:38Z
 THRESHOLD_LINES=90
 THRESHOLD_BRANCHES=90
 TOTAL_LINES_PCT=100.00
 TOTAL_BRANCHES_PCT=100.00
-STATUS=partial
+STATUS=pass
 SOURCE_PATHS=contractUtils.js
 EXCLUDED_PATHS=contact.helios:validator-source-covered-by-scenario-harness-not-branch-measurable-via-node-built-in-coverage; tests/{tests.ts,fixtures.ts}:scenario-harness-runtime-paths-require-missing-entrypoint-or-dependencies-in-current-local-environment
-LANGUAGE_SUMMARY=nodejs-utils:lines=100.00,branches=100.00,tool=node-test-coverage,status=pass;nodejs-scenarios:lines=NA,branches=NA,tool=npm-test,status=na,note=legacy-scenario-tests-require-missing-runtime-dependencies-or-entrypoint-fix
+LANGUAGE_SUMMARY=nodejs-utils:lines=100.00,branches=100.00,tool=node-test-coverage,status=pass;nodejs-scenarios:lines=NA,branches=NA,tool=npm-test,status=pass,note=npm-test-succeeded
 
 === RAW_OUTPUT_NPM_TEST ===
 
-> contract@1.0.0 test
-> npm run test:old && npm run test:new
+> contract@1.0.3 test
+> node --test tests/*.test.js
 
-
-> contract@1.0.0 test:old
-> node --es-module-specifier-resolution=node tests/tests.js
-
-node:internal/modules/cjs/loader:1247
-  throw err;
-  ^
-
-Error: Cannot find module '/home/jesse/src/koralabs/handles-public-datum/tests/tests.js'
-    at Function._resolveFilename (node:internal/modules/cjs/loader:1244:15)
-    at Function._load (node:internal/modules/cjs/loader:1070:27)
-    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
-    at wrapModuleLoad (node:internal/modules/cjs/loader:217:24)
-    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:170:5)
-    at node:internal/main/run_main_module:36:49 {
-  code: 'MODULE_NOT_FOUND',
-  requireStack: []
-}
-
-Node.js v22.13.1
+TAP version 13
+# Subtest: redeemer schema exposes every public datum update path with handle targets
+ok 1 - redeemer schema exposes every public datum update path with handle targets
+  ---
+  duration_ms: 2.363385
+  type: 'test'
+  ...
+# Subtest: load_datum requires settings, public datum output, and approved destination contract
+ok 2 - load_datum requires settings, public datum output, and approved destination contract
+  ---
+  duration_ms: 0.409815
+  type: 'test'
+  ...
+# Subtest: dapp updates preserve user settings and only change signer-owned datum keys
+ok 3 - dapp updates preserve user settings and only change signer-owned datum keys
+  ---
+  duration_ms: 0.321048
+  type: 'test'
+  ...
+# Subtest: owner updates can prune dapp datum only with the root owner signature
+ok 4 - owner updates can prune dapp datum only with the root owner signature
+  ---
+  duration_ms: 0.326168
+  type: 'test'
+  ...
+# Subtest: migrations require an admin signer and optional owner signer when settings demand it
+ok 5 - migrations require an admin signer and optional owner signer when settings demand it
+  ---
+  duration_ms: 0.881403
+  type: 'test'
+  ...
+# Subtest: resolveOptimizationFlag handles false and truthy values
+ok 6 - resolveOptimizationFlag handles false and truthy values
+  ---
+  duration_ms: 0.867256
+  type: 'test'
+  ...
+# Subtest: normalizeContractDirectory trims trailing slash
+ok 7 - normalizeContractDirectory trims trailing slash
+  ---
+  duration_ms: 0.164176
+  type: 'test'
+  ...
+# Subtest: readContractSource loads contact.helios and finds entrypoint text
+ok 8 - readContractSource loads contact.helios and finds entrypoint text
+  ---
+  duration_ms: 0.165128
+  type: 'test'
+  ...
+# Subtest: hasValidatorEntrypoint returns false when no validator text exists
+ok 9 - hasValidatorEntrypoint returns false when no validator text exists
+  ---
+  duration_ms: 0.107872
+  type: 'test'
+  ...
+1..9
+# tests 9
+# suites 0
+# pass 9
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 51.256137
 
 === RAW_OUTPUT_NODE_CONTRACT_UTILS_COVERAGE ===
 TAP version 13
 # Subtest: resolveOptimizationFlag handles false and truthy values
 ok 1 - resolveOptimizationFlag handles false and truthy values
   ---
-  duration_ms: 0.451598
+  duration_ms: 1.424164
+  type: 'test'
   ...
 # Subtest: normalizeContractDirectory trims trailing slash
 ok 2 - normalizeContractDirectory trims trailing slash
   ---
-  duration_ms: 0.080374
+  duration_ms: 0.12874
+  type: 'test'
   ...
 # Subtest: readContractSource loads contact.helios and finds entrypoint text
 ok 3 - readContractSource loads contact.helios and finds entrypoint text
   ---
-  duration_ms: 0.104757
+  duration_ms: 0.170217
+  type: 'test'
   ...
 # Subtest: hasValidatorEntrypoint returns false when no validator text exists
 ok 4 - hasValidatorEntrypoint returns false when no validator text exists
   ---
-  duration_ms: 0.047105
+  duration_ms: 0.090197
+  type: 'test'
   ...
 1..4
 # tests 4
@@ -66,7 +114,7 @@ ok 4 - hasValidatorEntrypoint returns false when no validator text exists
 # cancelled 0
 # skipped 0
 # todo 0
-# duration_ms 38.346616
+# duration_ms 57.013387
 # start of coverage report
 # -----------------------------------------------------------------------
 # file                   | line % | branch % | funcs % | uncovered lines
