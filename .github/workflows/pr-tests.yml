@@ -4,6 +4,7 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+  packages: read
 jobs:
   pr-tests:
     name: Lint, build and unit tests
@@ -14,5 +15,9 @@ jobs:
       with:
         node-version: 24
         cache: npm
+        registry-url: https://npm.pkg.github.com
+        scope: '@koralabs'
     - run: npm ci
+      env:
+        NODE_AUTH_TOKEN: ${{ github.token }}
     - run: npm test
