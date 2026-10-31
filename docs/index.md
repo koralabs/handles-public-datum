@@ -10,3 +10,6 @@
 - [Spec Index](./spec/index.md)
 - [Technical Spec](./spec/spec.md)
 - [Datum and Redeemer Model](./spec/datum-and-redeemer-model.md)
+
+## Policy proposals (not active)
+- [Canonical contract and enclave draft](./proposals/phase5-handles-public-datum/README.md): operator review required.
