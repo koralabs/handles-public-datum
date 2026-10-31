@@ -1,0 +1,4 @@
+# Files whose change the operator must review. Exact repo-root paths only. Why each: CANONICAL_CONTRACT.md.
+contact.helios
+.enclave
+CANONICAL_CONTRACT.md
